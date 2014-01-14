@@ -1,0 +1,15 @@
+NAME
+	sync.py - sync chosen directories with box
+	
+SETTINGS
+	The files/directories to be synced should be specified in the "settings" file.
+	This is specified as the SETTINGS variable in sync.py
+	
+	By default, subdirertories will also be synced. To limit recursion, specify
+	-r=x after the directory, where x is the level of subdirectory that will be 
+	synced. 0 will just do the files in the specifed directory.
+
+	By default, hidden files will not be synced. Use -h to sync hidden files
+
+
+
