@@ -21,6 +21,7 @@ def login():
 	f = open(client_file, 'r')
 	client_id = f.readline().split(' ')[0]
 	client_secret = f.readline().split(' ')[0]
+	f.close()
 
 	payload ={'response_type': 'code', 'client_id': client_id}
 	lpage = "https://www.box.com/api/oauth2/authorize"
@@ -42,11 +43,13 @@ def refresh_token(access_token):
 	f = open(client_file, 'r')
 	client_id = f.readline().split(' ')[0]
 	client_secret = f.readline().split(' ')[0]
+	f.close()
 	payload = {"client_id": client_id, "client_secret":client_secret, "grant_type":"refresh_token", "refresh_token":access_token["refresh_token"]}
 	r = requests.post("https://www.box.com/api/oauth2/token", data=payload)
 
 	with open(token_file, "wb") as f:
 		pickle.dump(r.json(), f)
+	f.close()
 	return(r.json())
 
 # Grabs old token from the token file
