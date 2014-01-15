@@ -2,14 +2,44 @@ NAME
 	sync.py - sync chosen directories with box
 	
 SETTINGS
-	The files/directories to be synced should be specified in the "settings" file.
-	This is specified as the SETTINGS variable in sync.py
+	The files/directories to be synced should be specified in the "settings"
+	file. This is specified as the SETTINGS variable in sync.py and can be
+	changed.
+
+	Each line should start with the absolute pathname of a file or directory.
+	sync should ignore blank lines or missing files/dirs but why test it.
+	You may specify as many directories as you like.
 	
-	By default, subdirertories will also be synced. To limit recursion, specify
-	-r=x after the directory, where x is the level of subdirectory that will be 
-	synced. 0 will just do the files in the specifed directory.
+	By default, directories are synced with full recursion (all subdirectories
+	are synced too). You can change this behavior with the -r option.
 
-	By default, hidden files will not be synced. Use -h to sync hidden files
-
+	By default, hidden files and directories are NOT synced. See the -h option.
 
 
+OPTIONS
+	Options are to be specifed on the same line as the directory to which they 
+	apply
+
+	-r=X
+	Specify the depth of subdirectory that will be synced. 0 will sync only the
+	files in the specified directory. 1 will do the files in the specified dir
+	and all of its subdirs. etc
+
+	-h
+	Sync hidden files and directories
+
+EXAMPLE
+	A valid line from the settings file should look as follows (without
+	the indent...):
+	FILENAME [ -r=X ] [ -h ]
+
+PROBLEMS
+	This is by no means perfect. Among the most serious issues are:
+	1) No error checking. It should be mostly fine on the client side but if
+	   something fails on box's side, sync will fail simply dump.
+	2) Does not support multiple devices. If you upload something from another
+	   device to the directories used by sync, it will be purged by sync.
+	   I can't think of how to do this. Can't see anywhere in box that
+	   remembers where the file came from. . .
+	3) I really should have tested versions using SHA1 hashes. Only then
+	   checking time stamps. Will save many server calls...
