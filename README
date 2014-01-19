@@ -41,9 +41,12 @@ EXAMPLE
 
 PROBLEMS
 	This is by no means perfect. Among the most serious issues are:
-	1) No error checking. It should be mostly fine on the client side but if
-	   something fails on box's side, sync will fail completely ungracefully...
+	1) Error checking is basic, and if something funny happens, I have no idea
+	   how sync will deal with it.
 	2) Does not support multiple devices. If you upload something from another
 	   device to the directories used by sync, it will be purged by sync.
 	   I can't think of how to do this. Can't see anywhere in box that
 	   remembers where the file came from. . .
+
+	The minor gripes include:
+	1) Logging in is an annoyance. Having to copy paste the code is clumsy.

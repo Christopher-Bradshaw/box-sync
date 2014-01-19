@@ -7,8 +7,7 @@ box.py
 Contains functions to deal with the box api
 
 todo:
-	ERROR CHECKING. If any of these requests fail, we will never know about it
-	because we never check... Do something about this!
+	Error checking is basic.
 """
 
 # access_token is an access token. . .
@@ -28,7 +27,13 @@ def dir_id(access_token, dirs, id_num):
 	
 	uri = "https://api.box.com/2.0/folders/" + id_num 
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
-	data = requests.get(uri, headers = payload).json()
+
+	while 1:
+		r = requests.get(uri, headers = payload)
+		if r.status_code == 200:
+			break
+
+	data = r.json()
 
 	for item in data["item_collection"]["entries"]:
 		if item["name"] == dirs:
@@ -40,7 +45,12 @@ def dir_id(access_token, dirs, id_num):
 def file_info(access_token, file_num, typ):
 	uri = "https://api.box.com/2.0/" + typ + "/" + file_num
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
-	r = requests.get(uri, headers = payload)
+
+	while 1:
+		r = requests.get(uri, headers = payload)
+		if r.status_code == 200:
+			break
+	
 	return(r.json())
 
 # Given the folder name and parent box id, creates that folder and returns the
@@ -49,7 +59,12 @@ def box_mkdir(access_token, name, parent_num):
 	uri = "https://api.box.com/2.0/folders"
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
 	payload2 = {"name": name, "parent": {"id": str(parent_num)}}
-	r = requests.post(uri, headers=payload, data=json.dumps(payload2))
+
+	while 1:
+		r = requests.post(uri, headers=payload, data=json.dumps(payload2))
+		if r.status_code == 201:
+			break
+	
 	return(r.json())
 
 # Given the box parent id and the local file, uploads the file and returns
@@ -59,7 +74,12 @@ def upload_file(access_token, parent, local_file):
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
 	payload2 = {"parent_id": str(parent)} 
 	files = {'file': (local_file, open(local_file, 'rb'))}
-	r = requests.post(uri, headers=payload, files=files, data=payload2)
+
+	while 1:
+		r = requests.post(uri, headers=payload, files=files, data=payload2)
+		if r.status_code == 201:
+			break
+	
 	return(r.json())
 
 # Given the box parent json data, the local files name, and sname.
@@ -90,7 +110,7 @@ def box_cleanup(access_token, dir_info, files):
 	for item in dir_info["item_collection"]["entries"]:
 		if item["name"] not in files:
 			print "deleting file: {0}".format(item["name"])
-			box_rm(access_token, item["id"], item["type"])
+			box_rm(access_token, item["id"], item["type"] + 's')
 
 
 # Deletes the file/folder specified by file_id
@@ -99,4 +119,7 @@ def box_rm(access_token, file_id, typ):
 	if typ == "folders":
 		uri = uri + "?recursive=true"
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
-	a = requests.delete(uri, headers=payload)
+	while 1:
+		r = requests.delete(uri, headers=payload)
+		if r.status_code == 204:
+			break

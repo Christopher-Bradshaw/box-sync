@@ -8,6 +8,7 @@ Contains functions to deal with tokens.
 """
 import pickle
 import requests
+import sys
 
 global token_file, client_file
 
@@ -25,7 +26,6 @@ def get_client_info():
 	client.append(f.readline().split(' ')[0]) # client secret
 	f.close()
 	return(client)
-	
 
 # Prompts the user to allow box_sync to access their box account
 # They need to copy a code from the url. 
@@ -38,28 +38,38 @@ def login():
 	lpage = "https://www.box.com/api/oauth2/authorize"
 	r = requests.get(lpage, params=payload)
 	print r.url
-	print "Please follow the instructions, and once done copy the 'code=XXXXX' in the url"
+	print "Please go to this url, follow the instructions, and once done copy\
+ the value give by code in the url"
 	
 	# Enter the code and get the access key!
 	code = raw_input("Please enter the code you got:")	
 	payload2 = {"client_id": client[0], "grant_type": "authorization_code", "client_secret": client[1], "code": code}
 	r = requests.post("https://www.box.com/api/oauth2/token", data=payload2)
-	with open(token_file, "wb") as f:
-		pickle.dump(r.json(), f)
-	return(r.json())
+
+	access_token = r.json()
+	write_token(access_token)
+	return(access_token)
 
 # Renews the access_token
 # Writes the new token to the token_file and returns the new token
-def refresh_token(access_token):
+def refresh_token():
+	access_token = read_old_token()
 	client = get_client_info()
 
 	payload = {"client_id": client[0], "client_secret":client[1], "grant_type":"refresh_token", "refresh_token":access_token["refresh_token"]}
-	r = requests.post("https://www.box.com/api/oauth2/token", data=payload)
 
-	with open(token_file, "wb") as f:
-		pickle.dump(r.json(), f)
-	f.close()
-	return(r.json())
+	while 1:
+		r = requests.post("https://www.box.com/api/oauth2/token", data=payload)
+		if r.status_code == 400 and r.json()["error_description"] == "Invalid refresh token":
+			print "Your code has expired, you need to login again\n"
+			r = login()
+			return(r)
+		elif r.status_code == 200:
+			break
+	
+	access_token = r.json()
+	write_token(access_token)
+	return(access_token)
 
 # Reads old token from token_file and returns it
 def read_old_token():
@@ -67,3 +77,9 @@ def read_old_token():
 		access_token = pickle.load(f)
 	f.close()
 	return(access_token)
+
+def write_token(access_token):
+	with open(token_file, "wb") as f:
+		pickle.dump(access_token, f)
+	f.close()
+	return(0)
