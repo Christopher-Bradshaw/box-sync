@@ -41,4 +41,3 @@ PROBLEMS
 	   device to the directories used by sync, it will be purged by sync.
 	   I can't think of how to do this. Can't see anywhere in box that
 	   remembers where the file came from. . .
-	3) Clean out base sync directory

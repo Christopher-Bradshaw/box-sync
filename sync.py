@@ -109,8 +109,8 @@ if __name__ == "__main__":
 		do(access_token, data[0], dir_info, hidden, depth)
 
 	# Cleanup the root dir
-	# Fix this
+	nfiles = [local.short_name(i[0]) for i in files]
 	for item in dir_info["item_collection"]["entries"]:
-		if item["name"] not in files:
+		if item["name"] not in nfiles:
 			print "deleting file: {0}".format(item["name"])
 			box.box_rm(access_token, item["id"], item["type"])

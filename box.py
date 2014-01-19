@@ -28,14 +28,11 @@ def dir_id(access_token, dirs, id_num):
 	
 	uri = "https://api.box.com/2.0/folders/" + id_num 
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
-	r = requests.get(uri, headers = payload)
-	
-	data = r.json()["item_collection"]["entries"]
+	data = requests.get(uri, headers = payload).json()
 
-	for i in data:
-		if i["name"] == dirs:
-			return(i["id"])
-	
+	for item in data["item_collection"]["entries"]:
+		if item["name"] == dirs:
+			return(item["id"])
 	return(0)
 
 # Given a file_num, returns the json encoded info about that file/folder
@@ -103,4 +100,3 @@ def box_rm(access_token, file_id, typ):
 		uri = uri + "?recursive=true"
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
 	a = requests.delete(uri, headers=payload)
-

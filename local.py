@@ -1,3 +1,15 @@
+#!/usr/bin/env python
+
+""" 
+Christopher Bradshaw												27/12/13
+local.py
+
+Contains functions that deal with local files, and particularly the settings
+files.
+
+todo:
+	check that remove duplicates is doing what you expect
+"""
 import sys
 import glob
 
@@ -54,10 +66,3 @@ def remove_duplicates(data):
 			j += 1
 		i += 1
 	return(data)
-				
-				
-		
-
-		
-	
-		
