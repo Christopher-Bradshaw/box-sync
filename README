@@ -2,12 +2,18 @@ NAME
 	sync.py - sync chosen directories with box
 	
 SETTINGS
-	The files/directories to be synced should be specified in the "settings"
-	file. This is specified as the SETTINGS variable in sync.py and can be
-	changed.
+	The location of the settings file is specified by the SETTINGS variable in
+	sync.py
+
+	The first line in the settings file should specify the folder, in the box
+	root directory, where the syncing will be done to. If this folder does not
+	exist, it will be created.
+
+	After this, the next lines in the settings files should specify the files/
+	directories that are to be synced. 
 
 	Each line should start with the absolute pathname of a file or directory.
-	sync should ignore blank lines or missing files/dirs but why test it.
+	sync should ignore blank lines or missing files/dirs.
 	You may specify as many directories as you like.
 	
 	By default, directories are synced with full recursion (all subdirectories
@@ -36,7 +42,7 @@ EXAMPLE
 PROBLEMS
 	This is by no means perfect. Among the most serious issues are:
 	1) No error checking. It should be mostly fine on the client side but if
-	   something fails on box's side, sync will fail simply dump.
+	   something fails on box's side, sync will fail completely ungracefully...
 	2) Does not support multiple devices. If you upload something from another
 	   device to the directories used by sync, it will be purged by sync.
 	   I can't think of how to do this. Can't see anywhere in box that

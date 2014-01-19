@@ -6,13 +6,13 @@ The main files of box sync for linux. Will handle the getting to token, and the
 uploading of files. All these functions will be contained in other files.
 
 todo:
+	login is bad. The copy paste makes a horrible first impression...
 	when updating a file, upload to tmp file, then move.
 	also something about versions?
 	could we use comments to determine where things came from?
 """
 
 SETTINGS = "settings"
-BOX_DIR = "SYNC"
 
 import os
 import sys
@@ -38,7 +38,7 @@ def do(access_token, fname, box_parent, hidden, depth):
 		up = box.to_upload_file(access_token, sname, fname, box_parent)
 		if up > 0:
 			print "upload and overwrite: {0}".format(fname)
-			box.box_rm(access_token, str(up), "file")
+			box.box_rm(access_token, str(up), "files")
 			box.upload_file(access_token, box_parent["id"], fname)
 		elif up == 0:
 			print "just upload: {0}".format(fname)
@@ -49,8 +49,17 @@ def do(access_token, fname, box_parent, hidden, depth):
 	# if fname is a dir, create dir if needed and re-call do
 	elif os.path.isdir(fname):
 		
-		# Check if dir exists on box. Create if it doesn't
+		# Check if dir exists on box.
 		box_num = box.dir_id(access_token, sname, box_parent["id"])
+		# If the dir exists on box and we are in too deep, delete it
+		if depth < 0:
+			if box_num:
+				box.box_rm(access_token, box_num, "folders")
+				print "deleting file: {0}".format(fname)
+			return(0)
+		
+
+		# Else we can create it/make sure it exists
 		if not box_num:
 			print "Creating dir: {0}".format(fname)
 			box_num = box.box_mkdir(access_token, sname, box_parent["id"])["id"]
@@ -67,9 +76,11 @@ def do(access_token, fname, box_parent, hidden, depth):
 			do(access_token, i, dir_info, hidden, depth-1)
 
 		# Now delete stuff out of this dir in box that no longer exists locally
-		box.box_cleanup(access_token, dir_info, files):
+		box.box_cleanup(access_token, dir_info, files)
 		# And go back to the parent directory
 		os.chdir('..')
+	return(0)
+			
 				
 if __name__ == "__main__":
 
@@ -81,15 +92,18 @@ if __name__ == "__main__":
 	
 	# Read SETTINGS file and get list of things to upload
 	f = open(SETTINGS, "r")
+	box_dir = f.readline().rstrip()
+	if '/' in box_dir:
+		sys.exit("Illegal box dir...")
 	files = [i.rstrip().split(' ') for i in f.readlines()]
 	files = local.remove_duplicates(files)
 	
 	# Search the root box dir for the sync location.
-	sync_loc = box.dir_id(access_token, BOX_DIR, "0")
+	sync_loc = box.dir_id(access_token, box_dir, "0")
 	# Create if does not exist
 	if not sync_loc: 
 		print "Creating sync location on Box"
-		sync_loc = box.box_mkdir(access_token, BOX_DIR, "0")["id"]
+		sync_loc = box.box_mkdir(access_token, box_dir, "0")["id"]
 
 	dir_info = box.file_info(access_token, sync_loc, "folders")
 
@@ -113,4 +127,4 @@ if __name__ == "__main__":
 	for item in dir_info["item_collection"]["entries"]:
 		if item["name"] not in nfiles:
 			print "deleting file: {0}".format(item["name"])
-			box.box_rm(access_token, item["id"], item["type"])
+			box.box_rm(access_token, item["id"], item["type"] + 's')

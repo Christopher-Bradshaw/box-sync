@@ -38,6 +38,7 @@ def login():
 	lpage = "https://www.box.com/api/oauth2/authorize"
 	r = requests.get(lpage, params=payload)
 	print r.url
+	print "Please follow the instructions, and once done copy the 'code=XXXXX' in the url"
 	
 	# Enter the code and get the access key!
 	code = raw_input("Please enter the code you got:")	

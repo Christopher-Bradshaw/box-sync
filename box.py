@@ -90,13 +90,13 @@ def box_cleanup(access_token, dir_info, files):
 	for item in dir_info["item_collection"]["entries"]:
 		if item["name"] not in files:
 			print "deleting file: {0}".format(item["name"])
-			box.box_rm(access_token, item["id"], item["type"])
+			box_rm(access_token, item["id"], item["type"])
 
 
 # Deletes the file/folder specified by file_id
 def box_rm(access_token, file_id, typ):
-	uri = "https://api.box.com/2.0/" + typ + "s/" + file_id
-	if typ == "folder":
+	uri = "https://api.box.com/2.0/" + typ + "/" + file_id
+	if typ == "folders":
 		uri = uri + "?recursive=true"
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
 	a = requests.delete(uri, headers=payload)
