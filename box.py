@@ -5,6 +5,10 @@ Christopher Bradshaw												27/12/13
 box.py
 
 Contains functions to deal with the box api
+
+todo:
+	ERROR CHECKING. If any of these requests fail, we will never know about it
+	because we never check... Do something about this!
 """
 
 # access_token is an access token. . .
@@ -16,12 +20,12 @@ import tmp
 import sys
 import time
 import os
+from hashlib import sha1
 
 # Given the parent id_num and the directory, dirs, we are looking for in that dir
 # Return the box id of that dir if it exists, 0 otherwise
-def backup_loc(access_token, dirs, id_num):
+def dir_id(access_token, dirs, id_num):
 	
-	# Home address
 	uri = "https://api.box.com/2.0/folders/" + id_num 
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
 	r = requests.get(uri, headers = payload)
@@ -61,60 +65,42 @@ def upload_file(access_token, parent, local_file):
 	r = requests.post(uri, headers=payload, files=files, data=payload2)
 	return(r.json())
 
-# Given the box parent id, the local files name and its last modification time
-# determines whether the file is to be uploaded (1), not uploaded (0) or
-# uploaded, overwriting an old version (string file id of file to overwrite)
+# Given the box parent json data, the local files name, and sname.
+# determines whether the file is to be uploaded (0), not uploaded (< 0) or
+# uploaded, overwriting an old version (> 0 int file id of file to overwrite)
 def to_upload_file(access_token, sname, fname, parent):
 
-	l_time = os.stat(fname).st_mtime # local modification time
-	# Check whether file exists on Box servers
-	file_num = 0
+	# Check whether file exists on Box servers. Return 0 (upload) if it doesn't
 	for item in parent["item_collection"]["entries"]:
 		if item["name"] == sname:
-			file_num = item["id"]
-			break
-	# return 1 if it doesn't
-	if not file_num:
-		return(1)
+			break # exists!
+	else:
+		return(0)
 	
-	# File exists on box, check modification times
-	info = file_info(access_token, file_num, "files")
+	# File exists on box check hash
+	l_hash = sha1(open(fname).read()).hexdigest()
 
-	if local_newer(l_time, info["modified_at"]):
-		return(str(info["id"]))
-	
-	# Else return 0 - nothing to upload
-	return(0)
+	# If hashes are the same, the file has not changed. No upload
+	if item["sha1"] == l_hash:
+		return(-1)
+	# Different = upload. The assumption made here is that different implies 
+	# older. This is not true if we have multiple devices...
+	return(item["id"])
 
-# Given a box dir id and the corresponding local dir, 
-# returns 1 if anything in the local directory is newer than the box dir
-def to_upload_dir(access_token, fname, dir_num):
-	# We know that the folder exists. Check modification times
-	l_time = os.stat(fname).st_mtime
-	info = file_info(access_token, dir_num, "folders")
-	if local_newer(l_time, info["modified_at"]):
-		return(1)
-	
-	return(0)
+# Deletes from the box dir specified by dir_info anything that is not also in
+# files
+def box_cleanup(access_token, dir_info, files):
+	for item in dir_info["item_collection"]["entries"]:
+		if item["name"] not in files:
+			print "deleting file: {0}".format(item["name"])
+			box.box_rm(access_token, item["id"], item["type"])
 
-# returns 1 if local is newer, 0 otherwise
-def local_newer(l_time, b_time):
-	l_time += int(b_time[-6:-3]) * 60 * 60 # box uses another time zone
-	l_time = time.gmtime(l_time)
-
-	nb_time = b_time[0:4] + b_time[5:7] + b_time[8:10] + b_time[11:13] + b_time[14:16] + b_time[17:19]
-	nl_time = str(l_time[0]) + ''.join([str(l_time[i]).zfill(2) for i in range(1,6)])
-	
-	# Check if local version is newer than box. Return 1 if so
-	if nb_time < nl_time:
-		return(1)
-	return(0)
-	
 
 # Deletes the file/folder specified by file_id
 def box_rm(access_token, file_id, typ):
-	uri = "https://api.box.com/2.0/" + typ + "/" + file_id
-	if typ == "folders":
+	uri = "https://api.box.com/2.0/" + typ + "s/" + file_id
+	if typ == "folder":
 		uri = uri + "?recursive=true"
 	payload = {"Authorization": "Bearer " + access_token["access_token"]}
-	requests.delete(uri, headers=payload)
+	a = requests.delete(uri, headers=payload)
+

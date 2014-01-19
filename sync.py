@@ -6,6 +6,9 @@ The main files of box sync for linux. Will handle the getting to token, and the
 uploading of files. All these functions will be contained in other files.
 
 todo:
+	when updating a file, upload to tmp file, then move.
+	also something about versions?
+	could we use comments to determine where things came from?
 """
 
 SETTINGS = "settings"
@@ -15,110 +18,99 @@ import os
 import sys
 import requests
 import json
-import glob
 
 import token
 import box
-import tmp
 import local
 
-# Given:
-# an access token
-# a string of a local directory/file, fname
-# the full json info on the parent of dirs
-# Does:
-# The shit it needs to
-def do(access_token, fname, box_parent, hidden, depth, upfiles):
+# Given an access token, a filename (absolute or relative), an id for the box
+# folder that is the parent, and a limit to the depth of recursion
+# uploads/updates all the things that need to be uploaded/dated
+# deletes things on box that have been deleted locally
+def do(access_token, fname, box_parent, hidden, depth):
+
 	sname = local.short_name(fname)
-	# if fname is a file, upload file and return 0
-	if not os.path.isdir(fname) and upfiles:
-		# Check if fname exists in box_parent
-		# Return 2 to overwrite (local is newer) 1 to upload (no box version) 0 to do nothing
+
+	# if fname is a file, upload file (if necessary) and return 0
+	if not os.path.isdir(fname):
+		# Determine whether to upload and overwrite (> 0), just upload (0), 
+		# do nothing (< 0)
 		up = box.to_upload_file(access_token, sname, fname, box_parent)
-		if type(up) == str:
+		if up > 0:
 			print "upload and overwrite: {0}".format(fname)
-			box.box_rm(access_token, up, "files")
+			box.box_rm(access_token, str(up), "file")
 			box.upload_file(access_token, box_parent["id"], fname)
-		elif up == 1:
+		elif up == 0:
 			print "just upload: {0}".format(fname)
 			box.upload_file(access_token, box_parent["id"], fname)
-		else:
+		elif up < 0:
 			print "don't upload: {0}".format(fname)
-		return(0)
 
-	# If fname is a dir, get its box id number (create if doesn't exist)
-	# box num is the box directory corresponding to fname
+	# if fname is a dir, create dir if needed and re-call do
 	elif os.path.isdir(fname):
-		box_num = box.backup_loc(access_token, sname, box_parent["id"])
-		up = 1
-
+		
+		# Check if dir exists on box. Create if it doesn't
+		box_num = box.dir_id(access_token, sname, box_parent["id"])
 		if not box_num:
 			print "Creating dir: {0}".format(fname)
-			new_dir = box.box_mkdir(access_token, sname, box_parent["id"])
-			box_num = new_dir["id"]
-		# exists, check if newer. If local is older, don't do anything with files
-		# however, you still need to check lower level subdirs
+			box_num = box.box_mkdir(access_token, sname, box_parent["id"])["id"]
 		else:
 			print "no need to create dir: {0}".format(fname)
-			up = box.to_upload_dir(access_token, fname, box_num)
-			if not up:
-				print "no files to upload from: {0}".format(fname)
-				
+		dir_info = box.file_info(access_token, box_num, "folders")
 
-		# get stuff in fname
+		# cd into fname and ls
 		os.chdir(fname)
 		files = local.listdir(hidden)
-		# re call do on all this stuff
-		dir_info = box.file_info(access_token, box_num, "folders")
+
+		# re-call do on all this stuff
 		for i in files:
-			do(access_token, i, dir_info, hidden, depth-1, up)
-			# Now delete stuff out of this dir in  box that has been deleted in local
-		for item in dir_info["item_collection"]["entries"]:
-			if item["name"] not in files:
-				if item["type"] == "file":
-					print "deleting file: {0}".format(item["name"])
-					box.box_rm(access_token, item["id"], "files")
-				else:
-					print "deleting dir: {0}".format(item["name"])
-					box.box_rm(access_token, item["id"], "folders")
-				
-		# And go back a directory
+			do(access_token, i, dir_info, hidden, depth-1)
+
+		# Now delete stuff out of this dir in box that no longer exists locally
+		box.box_cleanup(access_token, dir_info, files):
+		# And go back to the parent directory
 		os.chdir('..')
-	else:
-		print "We are uploading nothing from this dir, {0}".format(fname)
-
-
+				
 if __name__ == "__main__":
 
 	print "Updating token"
+	# Do this automatically
 	#access_token = token.login() # This only needs to be run if token expires
 	access_token = token.read_old_token()	
 	access_token = token.refresh_token(access_token)
 	
-	# Get list of files/dirs
+	# Read SETTINGS file and get list of things to upload
 	f = open(SETTINGS, "r")
-	files = [i.rstrip() for i in f.readlines()]
-
+	files = [i.rstrip().split(' ') for i in f.readlines()]
+	files = local.remove_duplicates(files)
 	
 	# Search the root box dir for the sync location.
+	sync_loc = box.dir_id(access_token, BOX_DIR, "0")
 	# Create if does not exist
-	sync_loc = box.backup_loc(access_token, BOX_DIR, "0")
 	if not sync_loc: 
 		print "Creating sync location on Box"
-		new_dir = box.box_mkdir(access_token, BOX_DIR, "0")
-		sync_loc = new_dir["id"]
-	
+		sync_loc = box.box_mkdir(access_token, BOX_DIR, "0")["id"]
 
 	dir_info = box.file_info(access_token, sync_loc, "folders")
-	for i in files:
-		data = i.split(' ')
+
+	for data in files:
 		hidden = local.dash_h(data)
 		depth = local.depth(data)
+		
+		# Check for errors in settings file
 		if depth == -1:
 			print "{0} has a bad deptht. Ignoring...".format(data[0])
 			continue
-
 		if not os.path.exists(data[0]):
 			print "{0} does not exist. Ignoring...".format(data[0])
 			continue
-		do(access_token, data[0], dir_info, hidden, depth, 1)
+
+		# 'do' all the things we need to do.
+		do(access_token, data[0], dir_info, hidden, depth)
+
+	# Cleanup the root dir
+	# Fix this
+	for item in dir_info["item_collection"]["entries"]:
+		if item["name"] not in files:
+			print "deleting file: {0}".format(item["name"])
+			box.box_rm(access_token, item["id"], item["type"])
